@@ -2,16 +2,36 @@
 const axios = require("axios");
 const { process } = require("./trader");
 const { updateTrades, getActiveTrade } = require("./positionManager");
-
 async function getData(symbol) {
-  const res = await axios.get(
-  `https://testnet.binance.vision/api/v3/klines?symbol=${symbol}&interval=15m&limit=200`
-);
+  try {
+    const res = await axios.get(
+      "https://testnet.binance.vision/api/v3/time"
+    );
+
+    console.log("✅ BINANCE TESTNET:", res.status, res.data);
+
+    return [];
+  } catch (error) {
+    console.log(
+      "❌ BINANCE TESTNET:",
+      error.response?.status,
+      error.response?.data || error.message
+    );
+
+    throw error;
+  }
+}
 /*
   const res = await axios.get(
     `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=15m&limit=200`
        
   );*/
+ /*
+async function getData(symbol) {
+  const res = await axios.get(
+  `https://testnet.binance.vision/api/v3/klines?symbol=${symbol}&interval=15m&limit=200`
+);
+
 
   return res.data.map(c => ({
     time: c[0],
@@ -21,7 +41,7 @@ async function getData(symbol) {
     close: +c[4]
   }));
 }
-
+*/
 async function run(symbols = ["BTCUSDT"]) {
   symbols.forEach(symbol => {
     setInterval(async () => {
