@@ -5,9 +5,13 @@ const { updateTrades, getActiveTrade } = require("./positionManager");
 
 async function getData(symbol) {
   const res = await axios.get(
+  `https://testnet.binance.vision/api/v3/klines?symbol=${symbol}&interval=15m&limit=200`
+);
+/*
+  const res = await axios.get(
     `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=15m&limit=200`
        
-  );
+  );*/
 
   return res.data.map(c => ({
     time: c[0],

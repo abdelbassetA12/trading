@@ -115,7 +115,8 @@ async function getData(
   limit = 200
 ) {
   const res = await axios.get(
-    `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`
+    `https://testnet.binance.vision/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`
+    //`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`
   );
 
   return res.data.map((c) => ({
