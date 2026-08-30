@@ -108,7 +108,32 @@ const SYMBOLS = [
 // لا تقوم بـ Backtest.
 //
 // ============================================================
+async function getData(symbol) {
+  try {
+    const res = await axios.get(
+      `https://testnet.binance.vision/api/v3/klines?symbol=${symbol}&interval=15m&limit=200`
+    );
 
+    return res.data.map(c => ({
+      time: c[0],
+      open: +c[1],
+      high: +c[2],
+      low: +c[3],
+      close: +c[4],
+      volume: +c[5]
+    }));
+
+  } catch (error) {
+    console.error(
+      "❌ BINANCE KLINES ERROR:",
+      error.response?.status,
+      error.response?.data || error.message
+    );
+
+    throw error;
+  }
+}
+/*
 async function getData(
   symbol,
   interval = "15m",
@@ -129,7 +154,7 @@ async function getData(
     volume: +c[5]
   }));
 }
-
+*/
 
 // ============================================================
 // 10. APPLICATION ROUTES
@@ -336,35 +361,7 @@ app.get("/signals-replay", async (req, res) => {
 
 
 
-app.get("/api/test-binance", async (req, res) => {
-  try {
-    const response = await axios.get(
-      "https://testnet.binance.vision/api/v3/klines",
-      {
-        params: {
-          symbol: "BTCUSDT",
-          interval: "15m",
-          limit: 5
-        },
-        timeout: 10000
-      }
-    );
-
-    res.json({
-      success: true,
-      status: response.status,
-      data: response.data
-    });
-  } catch (error) {
-    res.status(error.response?.status || 500).json({
-      success: false,
-      status: error.response?.status,
-      data: error.response?.data,
-      message: error.message
-    });
-  }
-});
-
+ 
 
 // ============================================================
 // 15. MONGODB
