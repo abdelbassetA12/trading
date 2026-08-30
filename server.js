@@ -334,6 +334,38 @@ app.get("/signals-replay", async (req, res) => {
 });
 
 
+
+
+app.get("/api/test-binance", async (req, res) => {
+  try {
+    const response = await axios.get(
+      "https://testnet.binance.vision/api/v3/klines",
+      {
+        params: {
+          symbol: "BTCUSDT",
+          interval: "15m",
+          limit: 5
+        },
+        timeout: 10000
+      }
+    );
+
+    res.json({
+      success: true,
+      status: response.status,
+      data: response.data
+    });
+  } catch (error) {
+    res.status(error.response?.status || 500).json({
+      success: false,
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message
+    });
+  }
+});
+
+
 // ============================================================
 // 15. MONGODB
 // ============================================================
