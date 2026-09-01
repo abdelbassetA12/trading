@@ -71,7 +71,8 @@ app.use(cookieParser());
 
 app.use(
   cors({
-    origin: "http://localhost:3001",
+    //origin: "http://localhost:3001",
+    origin: "https://trading-server-ten.vercel.app/",
     credentials: true
   })
 );
@@ -108,10 +109,15 @@ const SYMBOLS = [
 // لا تقوم بـ Backtest.
 //
 // ============================================================
-async function getData(symbol) {
+async function getData(
+  symbol,
+  interval = "15m",
+  limit = 200
+) {
   try {
     const res = await axios.get(
-      `https://testnet.binance.vision/api/v3/klines?symbol=${symbol}&interval=15m&limit=200`
+      `https://testnet.binance.vision/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`
+ 
     );
 
     return res.data.map(c => ({
@@ -133,28 +139,7 @@ async function getData(symbol) {
     throw error;
   }
 }
-/*
-async function getData(
-  symbol,
-  interval = "15m",
-  limit = 200
-) {
-  const res = await axios.get(
-    `https://testnet.binance.vision/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`
-    //`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`
-  );
-
-  return res.data.map((c) => ({
-    time: c[0],
-
-    open: +c[1],
-    high: +c[2],
-    low: +c[3],
-    close: +c[4],
-    volume: +c[5]
-  }));
-}
-*/
+ 
 
 // ============================================================
 // 10. APPLICATION ROUTES
