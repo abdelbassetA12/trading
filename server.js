@@ -71,8 +71,7 @@ app.use(cookieParser());
 
 app.use(
   cors({
-    //origin: "http://localhost:3001",
-    origin: "https://trading-server-ten.vercel.app",
+    origin: "http://localhost:3001",
     credentials: true
   })
 );
@@ -116,7 +115,7 @@ async function getData(
 ) {
   try {
     const res = await axios.get(
-      `https://testnet.binance.vision/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`
+      `${process.env.BINANCE_API_URL}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`
  
     );
 
@@ -160,6 +159,11 @@ app.use("/api/auth", authRoutes);
 // Profile
 app.use("/api/profile", profileRoutes);
 
+
+//منع السيرفر من الخمول 
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
 
 // ============================================================
 // 11. REAL / TESTNET BOT
@@ -292,6 +296,100 @@ app.get("/replay", async (req, res) => {
   }
 });
 
+
+
+// ============================================================
+// 13. MULTI-SYMBOL BACKTEST
+// ============================================================
+//
+// GET /replay
+//
+// مثال:
+// /replay?symbols=BTCUSDT,ETHUSDT&interval=15m
+//
+// ============================================================
+app.get("/replayking", async (req, res) => {
+  try {
+    // استقبال عملتين
+    const symbolsParam =
+      req.query.symbols || "BTCUSDT,ETHUSDT";
+
+    const symbols = symbolsParam
+      .split(",")
+      .map((symbol) => symbol.trim().toUpperCase())
+      .filter(Boolean);
+
+    const interval =
+      req.query.interval || "15m";
+
+    // التأكد من وجود عملتين
+    if (symbols.length !== 2) {
+      return res.status(400).json({
+        error: "Please provide exactly 2 symbols",
+      });
+    }
+
+    // =====================================================
+    // العملة الأولى
+    // =====================================================
+
+    const data1 = await getData(
+      symbols[0],
+      interval,
+      1000
+    );
+
+    const result1 = replayBacktest(data1);
+
+
+    // =====================================================
+    // العملة الثانية
+    // =====================================================
+
+    const data2 = await getData(
+      symbols[1],
+      interval,
+      1000
+    );
+
+    const result2 = replayBacktest(data2);
+
+
+    // =====================================================
+    // النتيجة
+    // =====================================================
+
+    res.json({
+      symbols,
+
+      interval,
+
+      results: {
+        [symbols[0]]: {
+          ...result1,
+          symbol: symbols[0],
+        },
+
+        [symbols[1]]: {
+          ...result2,
+          symbol: symbols[1],
+        },
+      },
+    });
+
+  } catch (err) {
+
+    console.error(
+      "BACKTEST ERROR:",
+      err
+    );
+
+    res.status(500).json({
+      error: err.message,
+    });
+  }
+});
+ 
 
 // ============================================================
 // 14. SIGNAL REPLAY

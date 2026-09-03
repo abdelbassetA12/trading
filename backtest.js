@@ -18,13 +18,13 @@
 
 const { generateSignal } = require("./strategy");
 
-function replayBacktest(data, balance = 10) {
+function replayBacktest(data, balance = 20) {
 
   // ============================================================
   // SETTINGS
   // ============================================================
 
-  const allocationPercent = 0.95;
+  const allocationPercent = 0.45;
 
   // أقل عدد شموع بين دخولين
   // سيتم استخدامه فقط بعد إغلاق الصفقة.

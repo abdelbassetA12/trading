@@ -4,7 +4,8 @@ const { generateSignal } = require("../strategy");
 const { openTrade, getActiveTrade } = require("./positionManager");
 const axios = require("axios");
 
-async function process(symbol, candles) {
+//async function process(symbol, candles) {
+  async function processTrade(symbol, candles) {
   // ✅ تحقق هل هناك صفقة مفتوحة
   if (getActiveTrade(symbol)) return;
 
@@ -21,7 +22,7 @@ async function process(symbol, candles) {
       return;
     }
 
-    const exchangeInfo = await axios.get("https://testnet.binance.vision/api/v3/exchangeInfo");
+    const exchangeInfo = await axios.get(`${process.env.BINANCE_API_URL}/api/v3/exchangeInfo`);
     const pairInfo = exchangeInfo.data.symbols.find(s => s.symbol === symbol);
 
     const lotFilter = pairInfo.filters.find(f => f.filterType === "LOT_SIZE");
@@ -80,5 +81,6 @@ quantity = Number(quantity.toFixed(precision));
     console.error("⚠️ Failed:", error.response?.data || error.message);
   }
 }
+module.exports = { processTrade };
+//module.exports = { process };
 
-module.exports = { process };

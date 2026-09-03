@@ -1,17 +1,15 @@
 
 const axios = require("axios");
-const { process } = require("./trader");
+//const { process } = require("./trader");
+ 
+const { processTrade } = require("./trader");
 const { updateTrades, getActiveTrade } = require("./positionManager");
 
-/*
-  const res = await axios.get(
-    `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=15m&limit=200`
-       
-  );*/
+ 
  
 async function getData(symbol) {
   const res = await axios.get(
-  `https://testnet.binance.vision/api/v3/klines?symbol=${symbol}&interval=15m&limit=200`
+  `${process.env.BINANCE_API_URL}/api/v3/klines?symbol=${symbol}&interval=15m&limit=200`
 );
 
 
@@ -34,7 +32,8 @@ async function run(symbols = ["BTCUSDT"]) {
 
       // دخول صفقة
       if (!activeTrade) {
-        await process(symbol, data);
+        //await process(symbol, data);
+        await processTrade(symbol, data);
       }
 
       // تحديث الصفقة
