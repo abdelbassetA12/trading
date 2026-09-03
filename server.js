@@ -71,8 +71,8 @@ app.use(cookieParser());
 
 app.use(
   cors({
-    //origin: "http://localhost:3001",
-    origin: "https://trading-server-ten.vercel.app",
+   
+    origin: process.env.CLIENT_URL,
     credentials: true
   })
 );
