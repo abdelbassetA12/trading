@@ -240,8 +240,30 @@ app.get("/signals", async (req, res) => {
 });
 
 
+app.get("/binance-test", async (req, res) => {
+  try {
+    const symbol = "BTCUSDT";
 
+    const response = await axios.get(
+      `${process.env.BINANCE_API_URL}/api/v3/klines?symbol=${symbol}&interval=15m&limit=200`
+    );
 
+    res.json({
+      success: true,
+      symbol,
+      count: response.data.length
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message
+    });
+  }
+});
+/*
 app.get("/binance-test", async (req, res) => {
   try {
     const response = await axios.get(
@@ -262,7 +284,7 @@ app.get("/binance-test", async (req, res) => {
       message: error.message
     });
   }
-});
+});*/
 
 
 // ============================================================
