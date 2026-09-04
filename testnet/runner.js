@@ -54,6 +54,65 @@ async function getData(symbol) {
 }*/
  
 async function run(symbols = ["BTCUSDT"]) {
+
+  symbols.forEach(symbol => {
+
+    let running = false;
+
+    setInterval(async () => {
+
+      if (running) return;
+
+      running = true;
+
+      try {
+
+        const data = await getData(symbol);
+
+        if (!data || data.length === 0) {
+          console.log(`[RUNNER:${symbol}] ⚠️ No data`);
+          return;
+        }
+
+        const lastCandle = data[data.length - 1];
+
+        let activeTrade = getActiveTrade(symbol);
+
+        // دخول صفقة
+        if (!activeTrade) {
+          await processTrade(symbol, data);
+        }
+
+        // تحديث الصفقة
+        activeTrade = getActiveTrade(symbol);
+
+        updateTrades(lastCandle, activeTrade);
+
+        if (activeTrade) {
+          console.log("📊 ACTIVE:", activeTrade);
+        }
+
+      } catch (error) {
+
+        console.error(
+          `[RUNNER:${symbol}] ❌`,
+          error.response?.data || error.message
+        );
+
+      } finally {
+
+        running = false;
+
+      }
+
+    }, 30000);
+
+  });
+}
+ 
+
+ /*
+async function run(symbols = ["BTCUSDT"]) {
   symbols.forEach(symbol => {
     setInterval(async () => {
       const data = await getData(symbol);
@@ -77,7 +136,7 @@ async function run(symbols = ["BTCUSDT"]) {
 
     }, 5000);
   });
-}
+}*/
 
 module.exports = { run };
 
