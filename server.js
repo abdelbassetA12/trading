@@ -240,6 +240,30 @@ app.get("/signals", async (req, res) => {
 });
 
 
+
+
+app.get("/binance-test", async (req, res) => {
+  try {
+    const response = await axios.get(
+      `${process.env.BINANCE_API_URL}/api/v3/ping`
+    );
+
+    res.json({
+      success: true,
+      data: response.data
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message
+    });
+  }
+});
+
+
 // ============================================================
 // 13. BACKTEST
 // ============================================================
