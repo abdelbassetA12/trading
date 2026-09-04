@@ -245,7 +245,7 @@ app.get("/signals", async (req, res) => {
 app.get("/binance-test", async (req, res) => {
   try {
     const response = await axios.get(
-      `${process.env.BINANCE_API_URL}/api/v3/ping`
+      `${process.env.BINANCE_API_URL}/api/v3/klines`
     );
 
     res.json({
