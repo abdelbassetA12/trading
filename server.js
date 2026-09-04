@@ -245,11 +245,12 @@ app.get("/signals", async (req, res) => {
 app.get("/binance-test", async (req, res) => {
   try {
     const response = await axios.get(
-      `${process.env.BINANCE_API_URL}/api/v3/klines`
+      `${process.env.BINANCE_API_URL}/api/v3/klines?symbol=BTCUSDT&interval=15m&limit=10`
     );
 
     res.json({
       success: true,
+      count: response.data.length,
       data: response.data
     });
 
