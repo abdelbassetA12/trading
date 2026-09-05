@@ -24,7 +24,8 @@
     "mongoose": "^9.3.3",
     "node-binance-api": "^1.0.22",
     "socket.io": "^4.8.3",
-    "technicalindicators": "^3.1.0"
+    "technicalindicators": "^3.1.0",
+    "ws": "^8.21.3"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

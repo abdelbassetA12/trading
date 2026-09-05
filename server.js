@@ -12,13 +12,16 @@ const http = require("http");
 const mongoose = require("mongoose");
 const cookieParser = require("cookie-parser");
 
+//const { getData } = require("./testnet/marketData");
+const { getData: getMarketData } = require("./testnet/marketData");
+
 
 // ============================================================
 // 2. TRADING SYSTEM IMPORTS
 // ============================================================
 
 // توليد الإشارة الحقيقية للاستراتيجية
-const { generateSignal } = require("./strategy");
+const { generateSignal } = require("./testnet/strategy");
 
 // تشغيل الـ Backtest فقط
 const { replayBacktest } = require("./backtest");
@@ -109,6 +112,7 @@ const SYMBOLS = [
 // لا تقوم بـ Backtest.
 //
 // ============================================================
+
 async function getData(
   symbol,
   interval = "15m",
@@ -177,7 +181,7 @@ app.get("/health", (req, res) => {
 //
 // هذا السطر:
 //
-//     run(SYMBOLS);
+     run(SYMBOLS);
 //
 // يقوم بتشغيل الـ runner.
 //
@@ -213,7 +217,42 @@ app.get("/health", (req, res) => {
 // generateSignal() = تحليل + Signal
 //
 // ============================================================
+app.get("/signals", async (req, res) => {
 
+  try {
+
+    const results = [];
+
+    for (const symbol of SYMBOLS) {
+
+      const data = getMarketData(symbol);
+
+      if (!data || data.length === 0) continue;
+
+      const { signal, trade } = generateSignal(data);
+
+      results.push({
+        symbol,
+        signal,
+        trade
+      });
+    }
+
+    res.json(results);
+
+  } catch (error) {
+
+    console.error("SIGNALS ERROR:", error.message);
+
+    res.status(500).json({
+      error: error.message
+    });
+
+  }
+
+});
+
+/*
 app.get("/signals", async (req, res) => {
   try {
     let results = [];
@@ -238,7 +277,7 @@ app.get("/signals", async (req, res) => {
     });
   }
 });
-
+*/
 
 app.get("/binance-test", async (req, res) => {
   try {

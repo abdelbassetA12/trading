@@ -87,32 +87,7 @@ async function takeProfitOrder(symbol, quantity, takeProfitPrice) {
     console.log("❌ ERROR:", err.response?.data || err.message);
   }
 }
-/*
-async function takeProfitOrder(symbol, quantity, takeProfitPrice) {
-  const timestamp = await getServerTime();
-
-  const recvWindow = 5000;
-
-  const query = 
-    `symbol=${symbol}` +
-    `&side=SELL` +
-    `&type=TAKE_PROFIT_MARKET` +
-    `&stopPrice=${takeProfitPrice}` +
-    `&quantity=${quantity}` +
-    `&timestamp=${timestamp}` +
-    `&recvWindow=${recvWindow}`;
-
-  const signature = sign(query);
-
-  const res = await axios.post(
-    `${BASE_URL}/api/v3/order?${query}&signature=${signature}`,
-    null,
-    { headers: { "X-MBX-APIKEY": API_KEY } }
-  );
-
-  return res.data;
-}
-*/
+ 
 
 
 

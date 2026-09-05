@@ -1,4 +1,78 @@
+const {
+  startMarketData,
+  getData,
+  subscribe
+} = require("./marketData");
 
+const { processTrade } = require("./trader");
+const {
+  updateTrades,
+  getActiveTrade
+} = require("./positionManager");
+
+async function run(symbols = ["BTCUSDT"]) {
+
+  for (const symbol of symbols) {
+
+    subscribe(symbol, async (data) => {
+
+      try {
+
+        if (!data || data.length < 100) {
+          console.log(
+            `[RUNNER:${symbol}] ⚠️ Not enough data`
+          );
+          return;
+        }
+
+        let activeTrade = getActiveTrade(symbol);
+
+        if (!activeTrade) {
+          await processTrade(symbol, data);
+        }
+
+        activeTrade = getActiveTrade(symbol);
+
+        const lastCandle = data[data.length - 1];
+
+        updateTrades(lastCandle, activeTrade);
+
+        if (activeTrade) {
+          console.log("📊 ACTIVE:", activeTrade);
+        }
+
+      } catch (error) {
+
+        console.error(
+          `[RUNNER:${symbol}] ❌`,
+          error.response?.data || error.message
+        );
+
+      }
+
+    });
+
+  }
+
+  await startMarketData(symbols);
+
+}
+
+module.exports = { run };
+
+
+
+
+
+
+
+
+
+
+
+
+
+ /*
 const axios = require("axios");
  
  
@@ -37,21 +111,7 @@ const { updateTrades, getActiveTrade } = require("./positionManager");
     return null;
   }
 }
-/*
-async function getData(symbol) {
-  const res = await axios.get(
-  `${process.env.BINANCE_API_URL}/api/v3/klines?symbol=${symbol}&interval=15m&limit=200`
-);
-
-
-  return res.data.map(c => ({
-    time: c[0],
-    open: +c[1],
-    high: +c[2],
-    low: +c[3],
-    close: +c[4]
-  }));
-}*/
+ 
  
 async function run(symbols = ["BTCUSDT"]) {
 
@@ -110,33 +170,8 @@ async function run(symbols = ["BTCUSDT"]) {
   });
 }
  
-
- /*
-async function run(symbols = ["BTCUSDT"]) {
-  symbols.forEach(symbol => {
-    setInterval(async () => {
-      const data = await getData(symbol);
-      const lastCandle = data[data.length - 1];
-
-      let activeTrade = getActiveTrade(symbol);
-
-      // دخول صفقة
-      if (!activeTrade) {
-        //await process(symbol, data);
-        await processTrade(symbol, data);
-      }
-
-      // تحديث الصفقة
-      activeTrade = getActiveTrade(symbol);
-      updateTrades(lastCandle, activeTrade);
-
-      if (activeTrade) {
-        console.log("📊 ACTIVE:", activeTrade);
-      }
-
-    }, 5000);
-  });
-}*/
+ 
 
 module.exports = { run };
 
+*/

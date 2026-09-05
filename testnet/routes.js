@@ -42,43 +42,7 @@ function formatTrades(trades) {
   return results;
 }
 
-
-/*
-function formatTrades(trades) {
-  let results = [];
-  let current = null;
-
-  // 🔥 مهم: ترتيب حسب الوقت
-  trades.sort((a, b) => a.time - b.time);
-
-  trades.forEach(t => {
-    if (t.isBuyer) {
-      current = {
-        symbol: t.symbol,
-        entry: parseFloat(t.price),
-        qty: parseFloat(t.qty),
-        time: t.time,
-        status: "OPEN"
-      };
-    } 
-    else if (current) {
-      results.push({
-        ...current,
-        exit: parseFloat(t.price),
-        profit: (t.price - current.entry) * current.qty,
-        status: "CLOSED",
-        result: "WIN"
-      });
-      current = null;
-    }
-  });
-
-  return results;
-}
-  */
-
-
-
+ 
 
 router.get("/trades", (req, res) => {
   res.json(getTradesIncludingActive());
