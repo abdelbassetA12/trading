@@ -181,7 +181,7 @@ app.get("/health", (req, res) => {
 //
 // هذا السطر:
 //
-     run(SYMBOLS);
+     //run(SYMBOLS);
 //
 // يقوم بتشغيل الـ runner.
 //
