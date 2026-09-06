@@ -1,6 +1,6 @@
 const {
   startMarketData,
-  getData,
+ 
   subscribe
 } = require("./marketData");
 
