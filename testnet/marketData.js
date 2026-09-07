@@ -154,7 +154,21 @@ function startWebSocket(symbols) {
 
   return ws;
 }
+async function startMarketData(symbols) {
+  for (const symbol of symbols) {
+    try {
+      await loadInitialData(symbol);
+    } catch (error) {
+      console.error(
+        `[MARKET:${symbol}] ❌ Initial data failed:`,
+        error.response?.data || error.message
+      );
+    }
+  }
 
+  startWebSocket(symbols);
+}
+/*
 async function startMarketData(symbols) {
 
   for (const symbol of symbols) {
@@ -162,7 +176,7 @@ async function startMarketData(symbols) {
   }
 
   startWebSocket(symbols);
-}
+}*/
 
 module.exports = {
   startMarketData,
