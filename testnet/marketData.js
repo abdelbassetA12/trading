@@ -168,15 +168,7 @@ async function startMarketData(symbols) {
 
   startWebSocket(symbols);
 }
-/*
-async function startMarketData(symbols) {
-
-  for (const symbol of symbols) {
-    await loadInitialData(symbol);
-  }
-
-  startWebSocket(symbols);
-}*/
+ 
 
 module.exports = {
   startMarketData,
