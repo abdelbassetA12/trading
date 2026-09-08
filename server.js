@@ -330,7 +330,31 @@ app.get("/binance-test", async (req, res) => {
 // ❌ لا يتداول بأموال حقيقية.
 //
 // ============================================================
+app.get("/replay", async (req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    return res.status(403).json({
+      error: "Replay is available locally only"
+    });
+  }
 
+  try {
+    const symbol = req.query.symbol || "BTCUSDT";
+    const interval = req.query.interval || "15m";
+
+    const data = await getData(symbol, interval, 1000);
+
+    const result = replayBacktest(data);
+
+    res.json(result);
+  } catch (err) {
+    console.error("BACKTEST ERROR:", err);
+
+    res.status(500).json({
+      error: err.message
+    });
+  }
+});
+/*
 app.get("/replay", async (req, res) => {
   try {
     const symbol =
@@ -359,100 +383,9 @@ app.get("/replay", async (req, res) => {
     });
   }
 });
+*/
 
-
-
-// ============================================================
-// 13. MULTI-SYMBOL BACKTEST
-// ============================================================
-//
-// GET /replay
-//
-// مثال:
-// /replay?symbols=BTCUSDT,ETHUSDT&interval=15m
-//
-// ============================================================
-app.get("/replayking", async (req, res) => {
-  try {
-    // استقبال عملتين
-    const symbolsParam =
-      req.query.symbols || "BTCUSDT,ETHUSDT";
-
-    const symbols = symbolsParam
-      .split(",")
-      .map((symbol) => symbol.trim().toUpperCase())
-      .filter(Boolean);
-
-    const interval =
-      req.query.interval || "15m";
-
-    // التأكد من وجود عملتين
-    if (symbols.length !== 2) {
-      return res.status(400).json({
-        error: "Please provide exactly 2 symbols",
-      });
-    }
-
-    // =====================================================
-    // العملة الأولى
-    // =====================================================
-
-    const data1 = await getData(
-      symbols[0],
-      interval,
-      1000
-    );
-
-    const result1 = replayBacktest(data1);
-
-
-    // =====================================================
-    // العملة الثانية
-    // =====================================================
-
-    const data2 = await getData(
-      symbols[1],
-      interval,
-      1000
-    );
-
-    const result2 = replayBacktest(data2);
-
-
-    // =====================================================
-    // النتيجة
-    // =====================================================
-
-    res.json({
-      symbols,
-
-      interval,
-
-      results: {
-        [symbols[0]]: {
-          ...result1,
-          symbol: symbols[0],
-        },
-
-        [symbols[1]]: {
-          ...result2,
-          symbol: symbols[1],
-        },
-      },
-    });
-
-  } catch (err) {
-
-    console.error(
-      "BACKTEST ERROR:",
-      err
-    );
-
-    res.status(500).json({
-      error: err.message,
-    });
-  }
-});
+ 
  
 
 // ============================================================
@@ -471,7 +404,34 @@ app.get("/replayking", async (req, res) => {
 // لا يرسل أوامر Binance.
 //
 // ============================================================
+app.get("/signals-replay", async (req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    return res.status(403).json({
+      error: "Signals Replay is available locally only"
+    });
+  }
 
+  try {
+    const symbol = req.query.symbol || "BTCUSDT";
+    const interval = req.query.interval || "15m";
+
+    const data = await getData(symbol, interval, 1000);
+
+    const signals = replaySignals(data);
+
+    res.json({
+      total: signals.length,
+      signals
+    });
+  } catch (err) {
+    console.error("SIGNALS REPLAY ERROR:", err);
+
+    res.status(500).json({
+      error: err.message
+    });
+  }
+});
+/*
 app.get("/signals-replay", async (req, res) => {
   try {
     const symbol =
@@ -503,7 +463,7 @@ app.get("/signals-replay", async (req, res) => {
       error: err.message
     });
   }
-});
+});*/
 
 
 
