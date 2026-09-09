@@ -336,7 +336,7 @@ app.get("/replay", async (req, res) => {
       error: "Replay is available locally only"
     });
   }
-d
+
   try {
     const symbol = req.query.symbol || "BTCUSDT";
     const interval = req.query.interval || "15m";
