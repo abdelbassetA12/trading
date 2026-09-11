@@ -1,32 +1,29 @@
- 
-// ============================================================
+ // ============================================================
 // 1. ENVIRONMENT & CORE IMPORTS
 // ============================================================
 
 require("dotenv").config();
 
 const express = require("express");
-const axios = require("axios");
 const cors = require("cors");
 const http = require("http");
 const mongoose = require("mongoose");
 const cookieParser = require("cookie-parser");
 
-//const { getData } = require("./testnet/marketData");
-const { getData: getMarketData } = require("./testnet/marketData");
+const {
+  getData: getMarketData,
+  getHistoricalData
+} = require("./bot/marketData");
 
 
 // ============================================================
 // 2. TRADING SYSTEM IMPORTS
 // ============================================================
 
-// توليد الإشارة الحقيقية للاستراتيجية
-const { generateSignal } = require("./testnet/strategy");
+const { generateSignal } = require("./bot/strategy");
 
-// تشغيل الـ Backtest فقط
 const { replayBacktest } = require("./backtest");
 
-// Replay للإشارات التاريخية فقط
 const { replaySignals } = require("./signalReplay");
 
 
@@ -34,27 +31,21 @@ const { replaySignals } = require("./signalReplay");
 // 3. REAL / TESTNET TRADING
 // ============================================================
 
-// تشغيل البوت
-const { run } = require("./testnet/runner");
+const { run } = require("./bot/runner");
 
-// Routes الخاصة بالـ Testnet
-const testnetRoutes = require("./testnet/routes");
+const testnetRoutes = require("./bot/routes");
 
-// تحويل العملات في Testnet
-const convertRoute = require("./testnet/convert");
+const convertRoute = require("./bot/convert");
 
 
 // ============================================================
 // 4. OTHER APPLICATION ROUTES
 // ============================================================
 
-// التداولات المخزنة في MongoDB
 const tradeRoutes = require("./routes/trades");
 
-// المصادقة
 const authRoutes = require("./routes/auth");
 
-// الملف الشخصي
 const profileRoutes = require("./routes/profile");
 
 
@@ -65,6 +56,7 @@ const profileRoutes = require("./routes/profile");
 const app = express();
 
 app.use(express.json());
+
 app.use(cookieParser());
 
 
@@ -74,12 +66,11 @@ app.use(cookieParser());
 
 app.use(
   cors({
-   
     origin: process.env.CLIENT_URL,
     credentials: true
   })
 );
- 
+
 
 // ============================================================
 // 7. HTTP SERVER
@@ -102,161 +93,88 @@ const SYMBOLS = [
 
 
 // ============================================================
-// 9. BINANCE MARKET DATA
-// ============================================================
-//
-// هذه الدالة فقط تجلب بيانات الشموع من Binance.
-// لا تفتح صفقة.
-// لا تغلق صفقة.
-// لا تحسب Profit.
-// لا تقوم بـ Backtest.
-//
+// 9. APPLICATION ROUTES
 // ============================================================
 
-async function getData(
-  symbol,
-  interval = "15m",
-  limit = 200
-) {
-  try {
-    const res = await axios.get(
-      `${process.env.BINANCE_API_URL}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`
- 
-    );
+// ------------------------------------------------------------
+// Currency conversion
+// ------------------------------------------------------------
 
-    return res.data.map(c => ({
-      time: c[0],
-      open: +c[1],
-      high: +c[2],
-      low: +c[3],
-      close: +c[4],
-      volume: +c[5]
-    }));
-
-  } catch (error) {
-    console.error(
-      "❌ BINANCE KLINES ERROR:",
-      error.response?.status,
-      error.response?.data || error.message
-    );
-
-    throw error;
-  }
-}
- 
-
-// ============================================================
-// 10. APPLICATION ROUTES
-// ============================================================
-
-// تحويل العملات
 app.use("/api", convertRoute);
 
-// Testnet API
+
+// ------------------------------------------------------------
+// Testnet trading API
+// ------------------------------------------------------------
+
 app.use("/api/testnet", testnetRoutes);
 
+
+// ------------------------------------------------------------
 // MongoDB trades
+// ------------------------------------------------------------
+
 app.use("/api/trades", tradeRoutes);
 
+
+// ------------------------------------------------------------
 // Authentication
+// ------------------------------------------------------------
+
 app.use("/api/auth", authRoutes);
 
+
+// ------------------------------------------------------------
 // Profile
+// ------------------------------------------------------------
+
 app.use("/api/profile", profileRoutes);
 
 
-//منع السيرفر من الخمول 
+// ============================================================
+// 10. HEALTH CHECK
+// ============================================================
+
 app.get("/health", (req, res) => {
-  res.status(200).json({ status: "ok" });
+  res.status(200).json({
+    status: "ok",
+    service: "trading-bot",
+    websocket: true,
+    trading: "spot"
+  });
 });
 
-// ============================================================
-// 11. REAL / TESTNET BOT
-// ============================================================
-//
-// ⚠️⚠️⚠️ مهم جدًا
-//
-// هذا هو الجزء الذي يجب أن نركز عليه عندما تريد معرفة:
-// "من الذي يشغل البوت؟"
-//
-// هذا السطر:
- 
-      run(SYMBOLS);
-//
-// يقوم بتشغيل الـ runner.
-//
-// إذا كان runner يقوم بإرسال أوامر إلى Binance Testnet,
-// فهذا هو المسار المسؤول عن التداول في Testnet.
-//
-//
-//
-// ❌ هذا ليس Backtest.
-// ❌ هذا ليس /replay.
-// ❌ هذا ليس /signals-replay.
-//
-// ============================================================
- 
 
 // ============================================================
-// 12. LIVE SIGNALS
+// 11. LIVE SIGNALS
 // ============================================================
 //
-// GET /signals
+// IMPORTANT:
 //
-// هذا endpoint يقوم بـ:
-// 1. جلب بيانات السوق الحالية.
-// 2. إرسالها إلى generateSignal().
-// 3. إرجاع الإشارة.
+// هذا endpoint لا يجلب البيانات من Binance REST.
 //
-//
-//
-// ⚠️ هذا الجزء لا يقوم بفتح الصفقة بنفسه.
-//
-// generateSignal() = تحليل + Signal
+// البيانات تأتي من marketData.js
+// الذي يستقبل الشموع عن طريق WebSocket.
 //
 // ============================================================
+
 app.get("/signals", async (req, res) => {
-
   try {
-
     const results = [];
 
     for (const symbol of SYMBOLS) {
-
       const data = getMarketData(symbol);
 
-      if (!data || data.length === 0) continue;
+      if (!data || data.length === 0) {
+        results.push({
+          symbol,
+          signal: "WAIT",
+          trade: null,
+          message: "Market data is not ready yet"
+        });
 
-      const { signal, trade } = generateSignal(data);
-
-      results.push({
-        symbol,
-        signal,
-        trade
-      });
-    }
-
-    res.json(results);
-
-  } catch (error) {
-
-    console.error("SIGNALS ERROR:", error.message);
-
-    res.status(500).json({
-      error: error.message
-    });
-
-  }
-
-});
-
-/*
-app.get("/signals", async (req, res) => {
-  try {
-    let results = [];
-
-    for (let symbol of SYMBOLS) {
-      const data = await getData(symbol);
+        continue;
+      }
 
       const analysis = generateSignal(data);
 
@@ -267,69 +185,93 @@ app.get("/signals", async (req, res) => {
     }
 
     res.json(results);
-  } catch (err) {
-    console.error("SIGNALS ERROR:", err);
+  } catch (error) {
+    console.error(
+      "❌ SIGNALS ERROR:",
+      error?.message || error
+    );
 
     res.status(500).json({
-      error: err.message
+      error: error?.message || "Failed to generate signals"
     });
   }
 });
-*/
+
+
+// ============================================================
+// 12. BINANCE CONNECTION TEST
+// ============================================================
+//
+// هذا endpoint لا يستخدم REST.
+//
+// الهدف منه فقط معرفة هل نظام WebSocket/API
+// الخاص بـ Binance جاهز.
+//
+// ============================================================
 
 app.get("/binance-test", async (req, res) => {
   try {
-    const symbol = "BTCUSDT";
+    const {
+      getConnectionStatus,
+      getAccount
+    } = require("./testnet/binanceClient");
 
-    const response = await axios.get(
-      `${process.env.BINANCE_API_URL}/api/v3/klines?symbol=${symbol}&interval=15m&limit=200`
-    );
+    const connection = getConnectionStatus();
+
+    if (!connection.connected) {
+      return res.status(503).json({
+        success: false,
+        websocket: false,
+        message: "Binance WebSocket API is not connected",
+        connection
+      });
+    }
+
+    let account = null;
+
+    try {
+      account = await getAccount();
+    } catch (accountError) {
+      console.error(
+        "❌ BINANCE ACCOUNT TEST ERROR:",
+        accountError?.message || accountError
+      );
+    }
 
     res.json({
       success: true,
-      symbol,
-      count: response.data.length
+      websocket: true,
+      connection,
+      accountReady: !!account,
+      message: "Binance WebSocket API is connected"
     });
-
   } catch (error) {
+    console.error(
+      "❌ BINANCE TEST ERROR:",
+      error?.message || error
+    );
+
     res.status(500).json({
       success: false,
-      status: error.response?.status,
-      data: error.response?.data,
-      message: error.message
+      error: error?.message || "Binance connection test failed"
     });
   }
 });
- 
 
 
 // ============================================================
 // 13. BACKTEST
 // ============================================================
 //
-// GET /replay
+// هذا الجزء LOCAL ONLY.
 //
-// ⚠️ هذا الجزء خاص بالاختبار التاريخي فقط.
+// لا يتم تشغيله في Production.
 //
-// المسار:
-//
-// Frontend
-//    ↓
-// /replay
-//    ↓
-// getData()
-//    ↓
-// replayBacktest()
-//    ↓
-// نتيجة Backtest
-//
-//
-//
-// ❌ لا يفتح صفقة حقيقية.
-// ❌ لا يرسل أمر شراء إلى Binance.
-// ❌ لا يتداول بأموال حقيقية.
+// لذلك لا توجد أي طلبات تاريخية من Binance
+// عند تشغيل السيرفر على Render.
 //
 // ============================================================
+
 app.get("/replay", async (req, res) => {
   if (process.env.NODE_ENV === "production") {
     return res.status(403).json({
@@ -338,72 +280,72 @@ app.get("/replay", async (req, res) => {
   }
 
   try {
-    const symbol = req.query.symbol || "BTCUSDT";
-    const interval = req.query.interval || "15m";
-
-    const data = await getData(symbol, interval, 1000);
-
-    const result = replayBacktest(data);
-
-    res.json(result);
-  } catch (err) {
-    console.error("BACKTEST ERROR:", err);
-
-    res.status(500).json({
-      error: err.message
-    });
-  }
-});
-/*
-app.get("/replay", async (req, res) => {
-  try {
     const symbol =
       req.query.symbol || "BTCUSDT";
 
     const interval =
       req.query.interval || "15m";
 
-    // جلب 1000 شمعة تاريخية
-    const data = await getData(
-      symbol,
-      interval,
-      1000
-    );
+    const limit =
+      Number(req.query.limit) || 1000;
 
-    // تشغيل Backtest
+
+    let data;
+
+
+    // --------------------------------------------------------
+    // Try historical data provider
+    // --------------------------------------------------------
+
+    if (typeof getHistoricalData === "function") {
+      data = await getHistoricalData(
+        symbol,
+        interval,
+        limit
+      );
+    } else {
+      // ------------------------------------------------------
+      // Fallback to current market cache
+      // ------------------------------------------------------
+
+      data = getMarketData(symbol);
+    }
+
+
+    if (!data || data.length === 0) {
+      return res.status(503).json({
+        error: "Historical market data is not available"
+      });
+    }
+
+
     const result = replayBacktest(data);
 
-    res.json(result);
 
+    res.json(result);
   } catch (err) {
-    console.error("BACKTEST ERROR:", err);
+    console.error(
+      "❌ BACKTEST ERROR:",
+      err?.message || err
+    );
 
     res.status(500).json({
-      error: err.message
+      error: err?.message || "Backtest failed"
     });
   }
 });
-*/
 
- 
- 
 
 // ============================================================
 // 14. SIGNAL REPLAY
 // ============================================================
 //
-// GET /signals-replay
+// LOCAL ONLY.
 //
-// هذا أيضًا اختبار تاريخي.
-//
-// لكنه مختلف عن Backtest.
-//
-// يقوم بإعادة الإشارات التاريخية فقط.
-//
-// لا يفتح صفقات.
-// لا يرسل أوامر Binance.
+// لا يرسل أي أمر إلى Binance.
 //
 // ============================================================
+
 app.get("/signals-replay", async (req, res) => {
   if (process.env.NODE_ENV === "production") {
     return res.status(403).json({
@@ -412,102 +354,312 @@ app.get("/signals-replay", async (req, res) => {
   }
 
   try {
-    const symbol = req.query.symbol || "BTCUSDT";
-    const interval = req.query.interval || "15m";
-
-    const data = await getData(symbol, interval, 1000);
-
-    const signals = replaySignals(data);
-
-    res.json({
-      total: signals.length,
-      signals
-    });
-  } catch (err) {
-    console.error("SIGNALS REPLAY ERROR:", err);
-
-    res.status(500).json({
-      error: err.message
-    });
-  }
-});
-/*
-app.get("/signals-replay", async (req, res) => {
-  try {
     const symbol =
       req.query.symbol || "BTCUSDT";
 
     const interval =
       req.query.interval || "15m";
 
-    const data = await getData(
-      symbol,
-      interval,
-      1000
-    );
+    const limit =
+      Number(req.query.limit) || 1000;
+
+
+    let data;
+
+
+    if (typeof getHistoricalData === "function") {
+      data = await getHistoricalData(
+        symbol,
+        interval,
+        limit
+      );
+    } else {
+      data = getMarketData(symbol);
+    }
+
+
+    if (!data || data.length === 0) {
+      return res.status(503).json({
+        error: "Historical market data is not available"
+      });
+    }
+
 
     const signals = replaySignals(data);
 
+
     res.json({
+      symbol,
+      interval,
       total: signals.length,
       signals
     });
-
   } catch (err) {
     console.error(
-      "SIGNALS REPLAY ERROR:",
-      err
+      "❌ SIGNAL REPLAY ERROR:",
+      err?.message || err
     );
 
     res.status(500).json({
-      error: err.message
+      error: err?.message || "Signal replay failed"
     });
   }
-});*/
+});
 
-
-
-
- 
 
 // ============================================================
-// 15. MONGODB
-// ============================================================
-//
-// هذا خاص بتخزين بيانات التطبيق.
-// ليس مسؤولًا عن Backtest.
-// وليس مسؤولًا مباشرة عن إرسال أوامر التداول.
-//
+// 15. 404 HANDLER
 // ============================================================
 
-mongoose
-  .connect(process.env.MONGO_URI)
+app.use((req, res) => {
+  res.status(404).json({
+    error: "Route not found",
+    path: req.originalUrl
+  });
+});
 
-  .then(() => {
+
+// ============================================================
+// 16. MONGODB
+// ============================================================
+
+async function connectMongoDB() {
+  try {
+    if (!process.env.MONGO_URI) {
+      console.error(
+        "❌ MONGO_URI is missing"
+      );
+
+      return;
+    }
+
+    await mongoose.connect(
+      process.env.MONGO_URI
+    );
+
     console.log(
       "MongoDB Connected Successfully"
     );
-  })
-
-  .catch((err) => {
+  } catch (err) {
     console.error(
       "MongoDB Connection Error:",
-      err
+      err?.message || err
     );
-  });
+  }
+}
 
 
 // ============================================================
-// 16. START SERVER
+// 17. START TRADING BOT
+// ============================================================
+//
+// مهم:
+//
+// هنا يتم تشغيل البوت الحقيقي.
+//
+// runner.js مسؤول عن:
+//
+// WebSocket Market Data
+//        ↓
+// candles
+//        ↓
+// strategy
+//        ↓
+// BUY
+//        ↓
+// WebSocket API
+//        ↓
+// Binance
+//
+// لا يوجد هنا REST polling.
+//
 // ============================================================
 
-server.listen(PORT, () => {
+async function startTradingBot() {
+  try {
+    console.log("");
+    console.log("==========================================");
+    console.log("🤖 STARTING SPOT TRADING BOT");
+    console.log("==========================================");
+
+    console.log(
+      "📊 Symbols:",
+      SYMBOLS.join(", ")
+    );
+
+    console.log(
+      "⏱️ Interval: 15m"
+    );
+
+    console.log(
+      "💱 Trading mode: SPOT"
+    );
+
+    console.log(
+      "📡 Market data: WebSocket"
+    );
+
+    console.log(
+      "📡 Orders/API: WebSocket API"
+    );
+
+    console.log(
+      "==========================================");
+    console.log("");
+
+
+    await run(SYMBOLS);
+
+
+    console.log("");
+    console.log(
+      "🟢 Trading bot started successfully"
+    );
+    console.log("");
+  } catch (error) {
+    console.error("");
+    console.error(
+      "❌ TRADING BOT START ERROR:"
+    );
+
+    console.error(
+      error?.response?.data ||
+      error?.message ||
+      error
+    );
+
+    console.error("");
+  }
+}
+
+
+// ============================================================
+// 18. START SERVER
+// ============================================================
+
+async function startServer() {
+  try {
+    await connectMongoDB();
+
+
+    server.listen(PORT, () => {
+      console.log("");
+      console.log(
+        `🚀 Server running on port ${PORT}`
+      );
+
+      console.log(
+        `🌐 Environment: ${
+          process.env.NODE_ENV || "development"
+        }`
+      );
+
+      console.log(
+        "💱 Binance mode: SPOT"
+      );
+
+      console.log(
+        "📡 Market data: WebSocket"
+      );
+
+      console.log(
+        "📡 Binance API: WebSocket API"
+      );
+
+      console.log("");
+    });
+
+
+    // --------------------------------------------------------
+    // Start bot AFTER server is listening
+    // --------------------------------------------------------
+
+    await startTradingBot();
+  } catch (error) {
+    console.error(
+      "❌ SERVER START ERROR:",
+      error?.message || error
+    );
+  }
+}
+
+
+// ============================================================
+// 19. GRACEFUL SHUTDOWN
+// ============================================================
+
+async function shutdown(signal) {
+  console.log("");
   console.log(
-    `🚀 Server running on port ${PORT}`
+    `🛑 ${signal} received`
   );
-});
- 
+
+  try {
+    server.close(() => {
+      console.log(
+        "🔌 HTTP server closed"
+      );
+    });
 
 
+    if (mongoose.connection.readyState === 1) {
+      await mongoose.connection.close();
 
+      console.log(
+        "🔌 MongoDB connection closed"
+      );
+    }
+  } catch (error) {
+    console.error(
+      "❌ Shutdown error:",
+      error?.message || error
+    );
+  } finally {
+    process.exit(0);
+  }
+}
+
+
+process.on(
+  "SIGINT",
+  () => shutdown("SIGINT")
+);
+
+process.on(
+  "SIGTERM",
+  () => shutdown("SIGTERM")
+);
+
+
+// ============================================================
+// 20. UNHANDLED ERRORS
+// ============================================================
+
+process.on(
+  "unhandledRejection",
+  (reason) => {
+    console.error(
+      "❌ UNHANDLED REJECTION:",
+      reason
+    );
+  }
+);
+
+
+process.on(
+  "uncaughtException",
+  (error) => {
+    console.error(
+      "❌ UNCAUGHT EXCEPTION:",
+      error
+    );
+  }
+);
+
+
+// ============================================================
+// 21. START APPLICATION
+// ============================================================
+
+startServer();
 
