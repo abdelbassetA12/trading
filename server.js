@@ -86,9 +86,10 @@ const PORT = process.env.PORT || 5000;
 // ============================================================
 
 const SYMBOLS = [
-  "BTCUSDT",
+  //"BTCUSDT",
   "ETHUSDT",
-  "SOLUSDT"
+  "SOLUSDT",
+  "XRPUSDT"
 ];
 
 
