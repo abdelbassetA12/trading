@@ -1127,7 +1127,181 @@ async function marketOrder(
 // ============================================================
 // TAKE PROFIT
 // ============================================================
+async function takeProfitOrder(
+  symbol,
+  quantity,
+  takeProfitPrice
+) {
+  try {
+    const info = await getExchangeInfo(symbol);
 
+    const lotSize = getFilter(
+      info,
+      "LOT_SIZE"
+    );
+
+    const priceFilter = getFilter(
+      info,
+      "PRICE_FILTER"
+    );
+
+    const baseAsset = info.baseAsset;
+
+    // ==========================================================
+    // WAIT FOR REAL BALANCE AFTER BUY
+    // ==========================================================
+
+    let availableQuantity = 0;
+
+    for (let i = 0; i < 30; i++) {
+      const balance = getCachedBalance(
+        baseAsset
+      );
+
+      availableQuantity = Number(
+        balance?.free || 0
+      );
+
+      if (
+        availableQuantity > 0 &&
+        availableQuantity >= Number(quantity) * 0.99
+      ) {
+        break;
+      }
+
+      await new Promise((resolve) =>
+        setTimeout(resolve, 100)
+      );
+    }
+
+    // ==========================================================
+    // USE REAL AVAILABLE BALANCE
+    // ==========================================================
+
+    if (availableQuantity <= 0) {
+      throw new Error(
+        `No available ${baseAsset} balance for TP`
+      );
+    }
+
+    let normalizedQuantity = Math.min(
+      Number(quantity),
+      availableQuantity
+    );
+
+    let normalizedPrice = Number(
+      takeProfitPrice
+    );
+
+    // ==========================================================
+    // LOT SIZE
+    // ==========================================================
+
+    if (lotSize?.stepSize) {
+      normalizedQuantity = floorToStep(
+        normalizedQuantity,
+        lotSize.stepSize
+      );
+    }
+
+    // ==========================================================
+    // PRICE FILTER
+    // ==========================================================
+
+    if (priceFilter?.tickSize) {
+      normalizedPrice = floorToStep(
+        normalizedPrice,
+        priceFilter.tickSize
+      );
+    }
+
+    // ==========================================================
+    // VALIDATION
+    // ==========================================================
+
+    if (
+      !Number.isFinite(normalizedQuantity) ||
+      normalizedQuantity <= 0
+    ) {
+      throw new Error(
+        `Invalid TP quantity: ${normalizedQuantity}`
+      );
+    }
+
+    if (
+      lotSize?.minQty &&
+      normalizedQuantity <
+        Number(lotSize.minQty)
+    ) {
+      throw new Error(
+        `TP quantity ${normalizedQuantity} is below minimum ${lotSize.minQty}`
+      );
+    }
+
+    if (
+      !Number.isFinite(normalizedPrice) ||
+      normalizedPrice <= 0
+    ) {
+      throw new Error(
+        `Invalid TP price: ${normalizedPrice}`
+      );
+    }
+
+    console.log(
+      `[TP:${symbol}] SELL ${normalizedQuantity} ${baseAsset} @ ${normalizedPrice}`
+    );
+
+    console.log(
+      `[TP:${symbol}] Available balance: ${availableQuantity}`
+    );
+
+    // ==========================================================
+    // CREATE SELL LIMIT
+    // ==========================================================
+
+    const response = await signedCall(
+      "order.place",
+      {
+        symbol,
+        side: "SELL",
+        type: "LIMIT",
+        timeInForce: "GTC",
+        quantity: normalizedQuantity,
+        price: normalizedPrice,
+        newOrderRespType: "RESULT"
+      }
+    );
+
+    const result = response?.result;
+
+    if (!result?.orderId) {
+      throw new Error(
+        "Binance did not return TP orderId"
+      );
+    }
+
+    accountState.orders[
+      String(result.orderId)
+    ] = result;
+
+    console.log(
+      `✅ [TP:${symbol}] SELL LIMIT CREATED | OrderId: ${result.orderId}`
+    );
+
+    return result;
+  } catch (error) {
+    console.error(
+      "❌ TP order error:",
+      error?.response?.error ||
+        error?.response?.data ||
+        error?.message ||
+        error
+    );
+
+    throw error;
+  }
+}
+/*
 async function takeProfitOrder(
   symbol,
   quantity,
@@ -1254,7 +1428,7 @@ async function takeProfitOrder(
 
     throw error;
   }
-}
+}*/
 
 
 // ============================================================

@@ -7,6 +7,21 @@ const {
   getTradesIncludingActive,
 } = require("./positionManager");
 
+
+const {
+  getAccount,
+  getAccountState,
+  getCachedBalances,
+  getCachedOpenOrders,
+  getMyTrades,
+  getAllOrders,
+  cancelOrder,
+  createLimitOrder,
+  takeProfitOrder,
+  getExchangeInfo,
+  getCachedBalance,
+} = require("./binanceClient");
+/*
 const {
   getAccount,
   getAccountState,
@@ -17,6 +32,7 @@ const {
   cancelOrder,
   createLimitOrder,
 } = require("./binanceClient");
+ */
 
 function formatTrades(trades) {
   const results = [];
@@ -434,6 +450,87 @@ router.post(
       res.status(500).json({
         error:
           err.message,
+      });
+    }
+  }
+);
+
+
+
+
+
+router.post(
+  "/test-take-profit",
+  async (req, res) => {
+    try {
+      const {
+        symbol,
+        price,
+      } = req.body;
+
+      if (!symbol || !price) {
+        return res.status(400).json({
+          error: "symbol and price are required",
+        });
+      }
+
+      const pairInfo =
+        await getExchangeInfo(symbol);
+
+      const baseAsset =
+        pairInfo.baseAsset;
+
+      const balance =
+        getCachedBalance(baseAsset);
+
+      const availableQuantity =
+        Number(balance?.free || 0);
+
+      if (availableQuantity <= 0) {
+        return res.status(400).json({
+          error:
+            `No free ${baseAsset} balance available`,
+          balance,
+        });
+      }
+
+      console.log(
+        `[TEST TP:${symbol}] Testing SELL LIMIT`
+      );
+
+      console.log(
+        `[TEST TP:${symbol}] Available: ${availableQuantity}`
+      );
+
+      const order =
+        await takeProfitOrder(
+          symbol,
+          availableQuantity,
+          Number(price)
+        );
+
+      res.json({
+        success: true,
+        symbol,
+        baseAsset,
+        availableQuantity,
+        price: Number(price),
+        order,
+      });
+    } catch (error) {
+      console.error(
+        "❌ TEST TP ERROR:",
+        error?.response?.data ||
+          error?.message ||
+          error
+      );
+
+      res.status(500).json({
+        success: false,
+        error:
+          error?.response?.data ||
+          error?.message ||
+          "Test TP failed",
       });
     }
   }
