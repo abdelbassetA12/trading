@@ -20,7 +20,7 @@ const {
 // 2. TRADING SYSTEM IMPORTS
 // ============================================================
 
-const { generateSignal } = require("./bot/strategy");
+const { generateSignal } = require("./strategy");
 
 const { replayBacktest } = require("./backtest");
 
