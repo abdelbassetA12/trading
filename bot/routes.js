@@ -228,6 +228,7 @@ router.get(
     try {
       const symbols = [
         "BTCUSDT",
+        "XRPUSDT",
         "ETHUSDT",
         "SOLUSDT",
       ];
