@@ -537,4 +537,132 @@ router.post(
   }
 );
 
+
+
+// ============================================================
+// OPEN POSITIONS WITH REAL ENTRY PRICE
+// ============================================================
+
+router.get(
+  "/open-positions",
+  async (req, res) => {
+    try {
+      const symbols = [
+        "BTCUSDT",
+        "XRPUSDT",
+        "ETHUSDT",
+        "SOLUSDT",
+      ];
+
+      const positions = [];
+
+      for (const symbol of symbols) {
+        const trades = await getMyTrades(symbol);
+
+        if (!trades || trades.length === 0) {
+          continue;
+        }
+
+        const sortedTrades = [...trades].sort(
+          (a, b) =>
+            Number(a.time || 0) -
+            Number(b.time || 0)
+        );
+
+        // ------------------------------------------------------
+        // Calculate remaining bought quantity
+        // ------------------------------------------------------
+
+        let totalBuyQty = 0;
+        let totalBuyValue = 0;
+        let totalSellQty = 0;
+
+        for (const trade of sortedTrades) {
+          const qty = Number(trade.qty) || 0;
+          const price = Number(trade.price) || 0;
+
+          if (trade.isBuyer) {
+            totalBuyQty += qty;
+            totalBuyValue += qty * price;
+          } else {
+            totalSellQty += qty;
+          }
+        }
+
+        const openQty =
+          totalBuyQty - totalSellQty;
+
+        if (openQty <= 0) {
+          continue;
+        }
+
+        // ------------------------------------------------------
+        // Average real entry price of remaining position
+        // ------------------------------------------------------
+
+        const entryPrice =
+          totalBuyQty > 0
+            ? totalBuyValue / totalBuyQty
+            : 0;
+
+        // ------------------------------------------------------
+        // Find active SELL / TP order
+        // ------------------------------------------------------
+
+        const openOrders =
+          getCachedOpenOrders().filter(
+            (order) =>
+              order.symbol === symbol &&
+              order.side === "SELL" &&
+              (
+                order.status === "NEW" ||
+                order.status === "PARTIALLY_FILLED"
+              )
+          );
+
+        positions.push({
+          symbol,
+
+          entryPrice: Number(
+            entryPrice.toFixed(8)
+          ),
+
+          quantity: Number(
+            openQty.toFixed(8)
+          ),
+
+          tpOrders: openOrders.map(
+            (order) => ({
+              orderId: order.orderId,
+              price: Number(order.price),
+              quantity: Number(
+                order.origQty ||
+                order.quantity ||
+                0
+              ),
+              status: order.status,
+            })
+          ),
+        });
+      }
+
+      res.json(positions);
+
+    } catch (error) {
+      console.error(
+        "Open positions error:",
+        error
+      );
+
+      res.status(500).json({
+        error:
+          error.message ||
+          "Failed to fetch open positions",
+      });
+    }
+  }
+);
+
+ 
+
 module.exports = router;

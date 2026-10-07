@@ -52,6 +52,7 @@ function openTrade(trade) {
 
   activeTrades[trade.symbol] = {
     ...trade,
+  
   };
 
   console.log(
