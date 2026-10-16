@@ -227,10 +227,10 @@ router.get(
   async (req, res) => {
     try {
       const symbols = [
-        "BTCUSDT",
-        "XRPUSDT",
-        "ETHUSDT",
-        "SOLUSDT",
+        "GLMRUSDT",
+        //"BTCUSDT",
+        //"ETHUSDT",
+        //"SOLUSDT",
       ];
 
       let allTrades = [];
@@ -548,10 +548,10 @@ router.get(
   async (req, res) => {
     try {
       const symbols = [
-        "BTCUSDT",
-        "XRPUSDT",
-        "ETHUSDT",
-        "SOLUSDT",
+        "GLMRUSDT",
+        //"BTCUSDT",
+        //"ETHUSDT",
+        //"SOLUSDT",
       ];
 
       const positions = [];

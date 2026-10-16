@@ -1,0 +1,666 @@
+const express = require("express");
+
+const router =
+  express.Router();
+
+const {
+  getTradesIncludingActive,
+} = require("./positionManager");
+
+
+const {
+  getAccount,
+  getAccountState,
+  getCachedBalances,
+  getCachedOpenOrders,
+  getMyTrades,
+  getAllOrders,
+  cancelOrder,
+  createLimitOrder,
+  takeProfitOrder,
+  getExchangeInfo,
+  getCachedBalance,
+} = require("./binanceClient");
+/*
+const {
+  getAccount,
+  getAccountState,
+  getCachedBalances,
+  getCachedOpenOrders,
+  getMyTrades,
+  getAllOrders,
+  cancelOrder,
+  createLimitOrder,
+} = require("./binanceClient");
+ */
+
+function formatTrades(trades) {
+  const results = [];
+
+  let current = null;
+
+  const sortedTrades = [
+    ...trades,
+  ].sort(
+    (a, b) =>
+      Number(a.time || 0) -
+      Number(b.time || 0)
+  );
+
+  sortedTrades.forEach((t) => {
+    if (t.isBuyer) {
+      current = {
+        symbol: t.symbol,
+        entry: parseFloat(
+          t.price
+        ),
+        qty: parseFloat(
+          t.qty
+        ),
+        entryTime: t.time,
+        status: "OPEN",
+      };
+    } else if (current) {
+      const exitTime =
+        t.time;
+
+      const exitPrice =
+        parseFloat(
+          t.price
+        );
+
+      const profit =
+        (exitPrice -
+          current.entry) *
+        current.qty;
+
+      results.push({
+        ...current,
+
+        exit: exitPrice,
+
+        exitTime,
+
+        profit,
+
+        duration: Math.round(
+          (exitTime -
+            current.entryTime) /
+            60000
+        ),
+
+        status: "CLOSED",
+
+        result:
+          exitPrice >
+          current.entry
+            ? "WIN"
+            : "LOSS",
+      });
+
+      current = null;
+    }
+  });
+
+  return results;
+}
+
+router.get(
+  "/trades",
+  (req, res) => {
+    res.json(
+      getTradesIncludingActive()
+    );
+  }
+);
+
+router.get(
+  "/balance",
+  async (req, res) => {
+    try {
+      const cachedBalances =
+        getCachedBalances();
+
+      if (
+        cachedBalances.length > 0
+      ) {
+        return res.json(
+          cachedBalances.filter(
+            (balance) =>
+              Number(
+                balance.free
+              ) > 0 ||
+              Number(
+                balance.locked
+              ) > 0
+          )
+        );
+      }
+
+      const account =
+        await getAccount();
+
+      const balances =
+        account.balances.filter(
+          (b) =>
+            parseFloat(
+              b.free
+            ) > 0 ||
+            parseFloat(
+              b.locked
+            ) > 0
+        );
+
+      res.json(balances);
+    } catch (err) {
+      console.error(
+        "Error fetching balance:",
+        err.message || err
+      );
+
+      res.status(500).json({
+        error:
+          "Failed to fetch balance",
+      });
+    }
+  }
+);
+
+router.get(
+  "/account-state",
+  async (req, res) => {
+    try {
+      const state =
+        getAccountState();
+
+      if (
+        state.balances.length ===
+          0 &&
+        state.orders.length === 0
+      ) {
+        await getAccount();
+      }
+
+      res.json(
+        getAccountState()
+      );
+    } catch (error) {
+      console.error(
+        "Account state error:",
+        error.message
+      );
+
+      res.status(500).json({
+        error:
+          error.message,
+      });
+    }
+  }
+);
+
+router.get(
+  "/trades/:symbol",
+  async (req, res) => {
+    try {
+      const raw =
+        await getMyTrades(
+          req.params.symbol
+        );
+
+      const formatted =
+        formatTrades(raw);
+
+      res.json(formatted);
+    } catch (err) {
+      console.error(err);
+
+      res.status(500).json({
+        error:
+          err.message,
+      });
+    }
+  }
+);
+
+router.get(
+  "/trades-all",
+  async (req, res) => {
+    try {
+      const symbols = [
+        "BTCUSDT",
+        "ETHUSDT",
+        "SOLUSDT",
+      ];
+
+      let allTrades = [];
+
+      for (const symbol of symbols) {
+        const raw =
+          await getMyTrades(
+            symbol
+          );
+
+        const formatted =
+          formatTrades(raw);
+
+        allTrades = [
+          ...allTrades,
+          ...formatted,
+        ];
+      }
+
+      allTrades.sort(
+        (a, b) =>
+          b.entryTime -
+          a.entryTime
+      );
+
+      res.json(allTrades);
+    } catch (err) {
+      console.error(err);
+
+      res.status(500).json({
+        error:
+          err.message,
+      });
+    }
+  }
+);
+
+router.get(
+  "/pending-orders/:symbol",
+  async (req, res) => {
+    try {
+      const symbol =
+        req.params.symbol;
+
+      const cached =
+        getCachedOpenOrders();
+
+      const filtered =
+        cached.filter(
+          (order) =>
+            order.symbol ===
+              symbol &&
+            (
+              order.status ===
+                "NEW" ||
+              order.status ===
+                "PARTIALLY_FILLED"
+            )
+        );
+
+      if (filtered.length > 0) {
+        return res.json(
+          filtered
+        );
+      }
+
+      const orders =
+        await getAllOrders(
+          symbol
+        );
+
+      const pending =
+        orders.filter(
+          (o) =>
+            o.status === "NEW" ||
+            o.status ===
+              "PARTIALLY_FILLED"
+        );
+
+      res.json(pending);
+    } catch (err) {
+      res.status(500).json({
+        error:
+          err.message,
+      });
+    }
+  }
+);
+
+router.get(
+  "/open-orders",
+  async (req, res) => {
+    try {
+      const cached =
+        getCachedOpenOrders();
+
+      if (
+        cached.length > 0
+      ) {
+        return res.json(
+          cached
+        );
+      }
+
+      const orders =
+        await require(
+          "./binanceClient"
+        ).getAllOpenOrders();
+
+      res.json(orders);
+    } catch (err) {
+      console.error(
+        "OpenOrders Error:",
+        err.message
+      );
+
+      res.status(500).json({
+        error:
+          err.message,
+      });
+    }
+  }
+);
+
+router.delete(
+  "/cancel-order",
+  async (req, res) => {
+    try {
+      const {
+        symbol,
+        orderId,
+      } = req.body;
+
+      if (
+        !symbol ||
+        !orderId
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              "Missing params",
+          });
+      }
+
+      const result =
+        await cancelOrder(
+          symbol,
+          orderId
+        );
+
+      res.json({
+        success: true,
+        result,
+      });
+    } catch (err) {
+      console.error(
+        "Cancel API Error:",
+        err.message
+      );
+
+      res.status(500).json({
+        error:
+          err.message,
+      });
+    }
+  }
+);
+
+router.post(
+  "/modify-order",
+  async (req, res) => {
+    try {
+      const {
+        symbol,
+        orderId,
+        price,
+        quantity,
+        side,
+      } = req.body;
+
+      if (
+        !symbol ||
+        !orderId ||
+        !price
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              "Missing params",
+          });
+      }
+
+      await cancelOrder(
+        symbol,
+        orderId
+      );
+
+      const newOrder =
+        await createLimitOrder(
+          symbol,
+          side,
+          quantity,
+          price
+        );
+
+      res.json({
+        success: true,
+        newOrder,
+      });
+    } catch (err) {
+      console.error(
+        "Modify Error:",
+        err.message
+      );
+
+      res.status(500).json({
+        error:
+          err.message,
+      });
+    }
+  }
+);
+
+
+
+
+
+router.post(
+  "/test-take-profit",
+  async (req, res) => {
+    try {
+      const {
+        symbol,
+        price,
+      } = req.body;
+
+      if (!symbol || !price) {
+        return res.status(400).json({
+          error: "symbol and price are required",
+        });
+      }
+
+      const pairInfo =
+        await getExchangeInfo(symbol);
+
+      const baseAsset =
+        pairInfo.baseAsset;
+
+      const balance =
+        getCachedBalance(baseAsset);
+
+      const availableQuantity =
+        Number(balance?.free || 0);
+
+      if (availableQuantity <= 0) {
+        return res.status(400).json({
+          error:
+            `No free ${baseAsset} balance available`,
+          balance,
+        });
+      }
+
+      console.log(
+        `[TEST TP:${symbol}] Testing SELL LIMIT`
+      );
+
+      console.log(
+        `[TEST TP:${symbol}] Available: ${availableQuantity}`
+      );
+
+      const order =
+        await takeProfitOrder(
+          symbol,
+          availableQuantity,
+          Number(price)
+        );
+
+      res.json({
+        success: true,
+        symbol,
+        baseAsset,
+        availableQuantity,
+        price: Number(price),
+        order,
+      });
+    } catch (error) {
+      console.error(
+        "❌ TEST TP ERROR:",
+        error?.response?.data ||
+          error?.message ||
+          error
+      );
+
+      res.status(500).json({
+        success: false,
+        error:
+          error?.response?.data ||
+          error?.message ||
+          "Test TP failed",
+      });
+    }
+  }
+);
+
+
+
+// ============================================================
+// OPEN POSITIONS WITH REAL ENTRY PRICE
+// ============================================================
+
+router.get(
+  "/open-positions",
+  async (req, res) => {
+    try {
+      const symbols = [
+        "BTCUSDT",
+        "ETHUSDT",
+        "SOLUSDT",
+      ];
+
+      const positions = [];
+
+      for (const symbol of symbols) {
+        const trades = await getMyTrades(symbol);
+
+        if (!trades || trades.length === 0) {
+          continue;
+        }
+
+        const sortedTrades = [...trades].sort(
+          (a, b) =>
+            Number(a.time || 0) -
+            Number(b.time || 0)
+        );
+
+        // ------------------------------------------------------
+        // Calculate remaining bought quantity
+        // ------------------------------------------------------
+
+        let totalBuyQty = 0;
+        let totalBuyValue = 0;
+        let totalSellQty = 0;
+
+        for (const trade of sortedTrades) {
+          const qty = Number(trade.qty) || 0;
+          const price = Number(trade.price) || 0;
+
+          if (trade.isBuyer) {
+            totalBuyQty += qty;
+            totalBuyValue += qty * price;
+          } else {
+            totalSellQty += qty;
+          }
+        }
+
+        const openQty =
+          totalBuyQty - totalSellQty;
+
+        if (openQty <= 0) {
+          continue;
+        }
+
+        // ------------------------------------------------------
+        // Average real entry price of remaining position
+        // ------------------------------------------------------
+
+        const entryPrice =
+          totalBuyQty > 0
+            ? totalBuyValue / totalBuyQty
+            : 0;
+
+        // ------------------------------------------------------
+        // Find active SELL / TP order
+        // ------------------------------------------------------
+
+        const openOrders =
+          getCachedOpenOrders().filter(
+            (order) =>
+              order.symbol === symbol &&
+              order.side === "SELL" &&
+              (
+                order.status === "NEW" ||
+                order.status === "PARTIALLY_FILLED"
+              )
+          );
+
+        positions.push({
+          symbol,
+
+          entryPrice: Number(
+            entryPrice.toFixed(8)
+          ),
+
+          quantity: Number(
+            openQty.toFixed(8)
+          ),
+
+          tpOrders: openOrders.map(
+            (order) => ({
+              orderId: order.orderId,
+              price: Number(order.price),
+              quantity: Number(
+                order.origQty ||
+                order.quantity ||
+                0
+              ),
+              status: order.status,
+            })
+          ),
+        });
+      }
+
+      res.json(positions);
+
+    } catch (error) {
+      console.error(
+        "Open positions error:",
+        error
+      );
+
+      res.status(500).json({
+        error:
+          error.message ||
+          "Failed to fetch open positions",
+      });
+    }
+  }
+);
+
+ 
+
+module.exports = router;
