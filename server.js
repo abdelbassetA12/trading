@@ -89,7 +89,8 @@ const SYMBOLS = [
   //"BTCUSDT",
   "ETHUSDT",
   "SOLUSDT",
-  "XRPUSDT"
+  "XRPUSDT",
+  "GLMRUSDT"
 ];
 
 
