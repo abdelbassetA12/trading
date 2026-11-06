@@ -228,9 +228,9 @@ router.get(
     try {
       const symbols = [
         "GLMRUSDT",
-        //"BTCUSDT",
-        //"ETHUSDT",
-        //"SOLUSDT",
+        "BTCUSDT",
+        "ETHUSDT",
+        "SOLUSDT",
       ];
 
       let allTrades = [];
@@ -549,9 +549,9 @@ router.get(
     try {
       const symbols = [
         "GLMRUSDT",
-        //"BTCUSDT",
-        //"ETHUSDT",
-        //"SOLUSDT",
+        "BTCUSDT",
+        "ETHUSDT",
+        "SOLUSDT",
       ];
 
       const positions = [];
