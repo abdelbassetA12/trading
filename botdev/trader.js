@@ -319,12 +319,17 @@ async function processTrade(
       newTrade
     );
   } catch (error) {
+     console.error(
+      `[TRADER:${symbol}] ❌ Failed:`,
+      JSON.stringify(error?.response || error?.message || error)
+    );
+    /*
     console.error(
       `[TRADER:${symbol}] ❌ Failed:`,
       error?.response?.data ||
         error.message ||
         error
-    );
+    );*/
   }
 }
 

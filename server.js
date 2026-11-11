@@ -13,7 +13,7 @@ const cookieParser = require("cookie-parser");
 const {
   getData: getMarketData,
   getHistoricalData
-} = require("./bot/marketData");
+} = require("./botdev/marketData");
 
 
 // ============================================================
@@ -31,11 +31,11 @@ const { replaySignals } = require("./signalReplay");
 // 3. REAL / TESTNET TRADING
 // ============================================================
 
-const { run } = require("./bot/runner");
+const { run } = require("./botdev/runner");
 
-const testnetRoutes = require("./bot/routes");
+const testnetRoutes = require("./botdev/routes");
 
-const convertRoute = require("./bot/convert");
+const convertRoute = require("./botdev/convert");
 
 
 // ============================================================
